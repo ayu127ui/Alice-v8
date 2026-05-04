@@ -18,8 +18,17 @@ def index():
 def video():
     global _streamer
     if _streamer is None:
-        _streamer = Streamer(current_app.config["CAMERA_SOURCE"],
-                             current_app.config["THREAT_THRESHOLD"])
+        # Initialize streamer with threat persistence tracking
+        min_threat_duration = current_app.config.get("MIN_THREAT_DURATION", 0.5)
+        min_ppe_duration = current_app.config.get("MIN_PPE_DURATION", 1.0)
+        
+        _streamer = Streamer(
+            current_app.config["CAMERA_SOURCE"],
+            current_app.config["THREAT_THRESHOLD"],
+            enable_ppe=current_app.config.get("ENABLE_PPE", True),
+            min_threat_duration=min_threat_duration,
+            min_ppe_duration=min_ppe_duration
+        )
     return Response(_streamer.frame_generator(),
                     mimetype="multipart/x-mixed-replace; boundary=frame")
 

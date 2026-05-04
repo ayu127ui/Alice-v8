@@ -233,8 +233,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   </div>
 
   <div class="cam-feed" id="camFeed">
-    <img id="feedImg" alt="CCTV Live Feed" style="width: 100%; height: 100%; object-fit: cover;" />
-    <div class="cam-feed-placeholder" id="placeholder" style="display:flex">
+    <img id="feedImg" alt="CCTV Live Feed" src="/video" style="width: 100%; height: 100%; object-fit: cover;" />
+    <div class="cam-feed-placeholder" id="placeholder" style="display:none">
       <div class="ico">ALICE</div>
       <p>AWAITING STREAM — /VIDEO ENDPOINT</p>
     </div>
@@ -453,68 +453,19 @@ setInterval(()=>{
 let dy=28,dd=1;
 setInterval(()=>{dy+=dd*0.25;if(dy>31||dy<25)dd*=-1;const b=document.getElementById('detBox');if(b)b.style.top=dy+'%';},120);
 
-/* MJPEG Stream Handler */
+/* MJPEG Stream Handler - Direct image source method */
 function startMJPEGStream() {
   const img = document.getElementById('feedImg');
   const placeholder = document.getElementById('placeholder');
   
-  fetch('/video')
-    .then(response => {
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      
-      function readChunk() {
-        reader.read().then(({done, value}) => {
-          if (done) {
-            console.log('Stream ended');
-            placeholder.style.display = 'flex';
-            return;
-          }
-          
-          buffer += decoder.decode(value, {stream: true});
-          
-          // Look for JPEG frames between boundaries
-          const parts = buffer.split('--frame');
-          
-          if (parts.length > 1) {
-            // Process all complete frames
-            for (let i = 1; i < parts.length - 1; i++) {
-              const frame = parts[i];
-              
-              // Extract JPEG data
-              const jpegMatch = frame.match(/\xff\xd8[\s\S]*?\xff\xd9/);
-              if (jpegMatch) {
-                try {
-                  const blob = new Blob([jpegMatch[0]], {type: 'image/jpeg'});
-                  const url = URL.createObjectURL(blob);
-                  
-                  // Update image and hide placeholder
-                  img.onload = function() {
-                    placeholder.style.display = 'none';
-                    URL.revokeObjectURL(url);
-                  };
-                  img.src = url;
-                } catch(e) {
-                  console.error('Error processing frame:', e);
-                }
-              }
-            }
-            
-            // Keep unprocessed data in buffer
-            buffer = parts[parts.length - 1];
-          }
-          
-          readChunk();
-        });
-      }
-      
-      readChunk();
-    })
-    .catch(error => {
-      console.error('Stream error:', error);
-      placeholder.style.display = 'flex';
-    });
+  img.onload = function() {
+    placeholder.style.display = 'none';
+  };
+  
+  img.onerror = function() {
+    placeholder.style.display = 'flex';
+    console.error('Failed to load video stream');
+  };
 }
 
 // Start stream when page loads

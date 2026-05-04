@@ -16,6 +16,13 @@ class Config:
     USE_KAGGLE_MODELS = os.getenv("USE_KAGGLE_MODELS", "False").lower() == "true"
     USE_HUGGINGFACE_MODELS = os.getenv("USE_HUGGINGFACE_MODELS", "True").lower() == "true"
     
+    # Threat Persistence Configuration (reduces screenshot spam)
+    # Only log threats when continuously detected for minimum duration
+    MIN_THREAT_DURATION = float(os.getenv("MIN_THREAT_DURATION", "0.5"))  # seconds
+    MIN_PPE_DURATION = float(os.getenv("MIN_PPE_DURATION", "1.0"))  # seconds
+    THREAT_LOG_COOLDOWN = float(os.getenv("THREAT_LOG_COOLDOWN", "2"))  # seconds between logs
+    THREAT_ALERT_COOLDOWN = int(os.getenv("THREAT_ALERT_COOLDOWN", "30"))  # seconds
+    
     # PPE Configuration
     REQUIRED_PPE = os.getenv("REQUIRED_PPE", "helmet,safety_vest").split(",")
     PPE_ALERT_COOLDOWN = int(os.getenv("PPE_ALERT_COOLDOWN", "60"))

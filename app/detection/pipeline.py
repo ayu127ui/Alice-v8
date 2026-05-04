@@ -129,7 +129,7 @@ class DualYOLOPipeline:
         return keep
 
     def _draw(self, frame, dets, score, ppe_dets=None, ppe_violations=None):
-        """Draw all detections and violations on frame"""
+        """Draw all detections and violations on frame with optimized sizing"""
         # Draw weapon detections
         for d in dets:
             x1, y1, x2, y2 = d["bbox"]
@@ -140,9 +140,26 @@ class DualYOLOPipeline:
             # Red for weapons, green for persons
             color = (0, 0, 255) if is_weapon else (0, 200, 0)
             
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, f"{label} {conf:.2f}", (x1, y1 - 8),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+            # Adaptive box thickness based on object size
+            box_width = x2 - x1
+            thickness = max(1, min(3, int(box_width / 150)))
+            
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
+            
+            # Draw text with background for better readability
+            text = f"{label} {conf:.2f}"
+            font_scale = 0.35
+            thickness_text = 1
+            (text_width, text_height), baseline = cv2.getTextSize(
+                text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness_text
+            )
+            
+            # Background rectangle for text
+            cv2.rectangle(frame, (x1, max(0, y1 - text_height - 6)),
+                         (x1 + text_width + 4, y1 + 2),
+                         color, -1)
+            cv2.putText(frame, text, (x1 + 2, max(text_height, y1 - 4)),
+                       cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), thickness_text)
         
         # Draw PPE detections
         if ppe_dets:
@@ -153,9 +170,22 @@ class DualYOLOPipeline:
                 
                 # Cyan for PPE
                 color = (255, 255, 0)
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
-                cv2.putText(frame, f"{label} {conf:.2f}", (x1, y1 - 20),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+                box_width = x2 - x1
+                thickness = max(1, min(2, int(box_width / 200)))
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
+                
+                # Draw text with background
+                text = f"{label} {conf:.2f}"
+                font_scale = 0.3
+                thickness_text = 1
+                (text_width, text_height), _ = cv2.getTextSize(
+                    text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness_text
+                )
+                cv2.rectangle(frame, (x1, max(0, y1 - text_height - 5)),
+                             (x1 + text_width + 3, y1 + 1),
+                             color, -1)
+                cv2.putText(frame, text, (x1 + 2, max(text_height, y1 - 2)),
+                           cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), thickness_text)
         
         # Draw PPE violations
         if ppe_violations:
@@ -165,17 +195,37 @@ class DualYOLOPipeline:
                     missing = ", ".join(violation["missing_ppe"][:1])
                     compliance_pct = int(violation["compliance_score"] * 100)
                     
-                    # Red box for violations
+                    # Red box for violations (dashed effect with thinner line)
                     color = (0, 0, 255)
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                    
+                    # Draw violation text with background
                     text = f"No {missing} ({compliance_pct}%)"
-                    cv2.putText(frame, text, (x1, y1 - 25),
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                    font_scale = 0.4
+                    thickness_text = 1
+                    (text_width, text_height), _ = cv2.getTextSize(
+                        text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness_text
+                    )
+                    cv2.rectangle(frame, (x1, max(0, y1 - text_height - 8)),
+                                 (x1 + text_width + 6, y1 + 3),
+                                 color, -1)
+                    cv2.putText(frame, text, (x1 + 3, max(text_height, y1 - 3)),
+                               cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), thickness_text)
         
         # Draw threat score
         threat_color = (0, 0, 255) if score > 0.6 else (0, 255, 255) if score > 0.3 else (0, 255, 0)
-        cv2.putText(frame, f"Threat: {score:.2f}", (18, 28),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, threat_color, 2)
+        text = f"THREAT: {score:.2f}"
+        font_scale = 0.5
+        thickness_text = 1
+        (text_width, text_height), _ = cv2.getTextSize(
+            text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness_text
+        )
+        # Background for threat score
+        cv2.rectangle(frame, (10, 15),
+                     (text_width + 30, text_height + 30),
+                     (0, 0, 0), -1)
+        cv2.putText(frame, text, (18, 28),
+                   cv2.FONT_HERSHEY_SIMPLEX, font_scale, threat_color, thickness_text)
         
         return frame
 
