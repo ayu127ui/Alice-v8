@@ -1,0 +1,15 @@
+ultralytics==8.3.23
+opencv-python
+flask
+python-dotenv
+twilio
+pillow
+scikit-learn
+numpy
+sqlite-utils
+huggingface-hub
+kaggle
+torch
+torchvision
+transformers
+
