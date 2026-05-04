@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>ALICE v8 — Threat Logs</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg-dark: #05070f;
+  --bg-card: #0b1220;
+  --border: #1a2a45;
+
+  --cyan: #00eaff;
+  --red: #ff3b3b;
+  --green: #00ff9c;
+  --amber: #ffcc00;
+
+  --text: #cfe8ff;
+}
+
+body {
+  margin: 0;
+  font-family: 'Share Tech Mono', monospace;
+  background: var(--bg-dark);
+  color: var(--text);
+}
+
+/* HEADER */
+.header {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.header h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2.5rem;
+  color: var(--cyan);
+  letter-spacing: 3px;
+}
+
+.header p {
+  color: #8fbfff;
+}
+
+/* TABLE */
+.table-container {
+  width: 95%;
+  margin: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* HEAD */
+thead {
+  background: #0e1a2f;
+}
+
+th {
+  padding: 14px;
+  color: var(--cyan);
+  text-align: left;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ROWS */
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: 0.25s;
+}
+
+tbody tr:hover {
+  background: rgba(0, 234, 255, 0.05);
+}
+
+/* CELLS */
+td {
+  padding: 14px;
+  font-size: 0.9rem;
+}
+
+/* TAGS */
+.label-tag {
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(255, 59, 59, 0.15);
+  color: var(--red);
+  border: 1px solid rgba(255, 59, 59, 0.4);
+  margin: 2px;
+  display: inline-block;
+}
+
+/* SCORE */
+.score {
+  color: var(--amber);
+}
+
+/* SCREENSHOT */
+.screenshot {
+  width: 180px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.screenshot:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan);
+}
+
+/* BUTTON */
+.btn-alert {
+  padding: 6px 12px;
+  background: var(--red);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-alert:hover {
+  box-shadow: 0 0 10px var(--red);
+}
+
+/* BACK BUTTON */
+.btn-back {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: var(--cyan);
+  text-decoration: none;
+  border: 1px solid var(--cyan);
+  padding: 8px 14px;
+  border-radius: 6px;
+}
+
+.btn-back:hover {
+  background: var(--cyan);
+  color: black;
+}
+
+</style>
+</head>
+
+<body>
+
+<a href="/" class="btn-back">← BACK</a>
+
+<div class="header">
+  <h1>ALICE v8 LOGS</h1>
+  <p>Threat Detection Records</p>
+  <p>Total Logs: {{ events|length }}</p>
+</div>
+
+{% if events %}
+<div class="table-container">
+<table>
+<thead>
+<tr>
+  <th>TIME</th>
+  <th>THREAT LABELS</th>
+  <th>SCORE</th>
+  <th>SCREENSHOT</th>
+  <th>ACTION</th>
+</tr>
+</thead>
+
+<tbody>
+{% for e in events %}
+<tr>
+  <td>{{ e.timestamp }}</td>
+
+  <td>
+    {% for label in e.labels.split(',') %}
+    <span class="label-tag">{{ label }}</span>
+    {% endfor %}
+  </td>
+
+  <td class="score">{{ "%.3f"|format(e.score) }}</td>
+
+  <td>
+    <img src="/screenshot/{{ e.id }}" class="screenshot">
+  </td>
+
+  <td>
+    <button onclick="sendAlert(this)" data-id="{{ e.id }}" data-labels="{{ e.labels }}" data-score="{{ e.score }}" class="btn-alert">
+      ALERT
+    </button>
+  </td>
+</tr>
+{% endfor %}
+</tbody>
+
+</table>
+</div>
+
+{% else %}
+<div style="text-align:center; margin-top:50px;">
+  <h2 style="color: var(--green)">NO THREATS DETECTED</h2>
+</div>
+{% endif %}
+
+<script>
+function sendAlert(button){
+  const id = button.dataset.id;
+  const labels = button.dataset.labels;
+  const score = parseFloat(button.dataset.score);
+  fetch('/send-alert',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({event_id:id, labels:labels, score:score})
+  })
+  .then(()=>alert("Alert Sent"))
+}
+</script>
+</body>
+</html>

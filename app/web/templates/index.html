@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALICE v8 — Threat Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --cyan:#00d4ff;
+  --cyan-dim:rgba(0,212,255,0.15);
+  --amber:#ffb800;
+  --amber-dim:rgba(255,184,0,0.12);
+  --red:#ff3b3b;
+  --red-dim:rgba(255,59,59,0.12);
+  --green:#00ff88;
+  --green-dim:rgba(0,255,136,0.1);
+  --bg:#040810;
+  --bg2:#070d18;
+  --surface:rgba(10,20,40,0.9);
+  --border:rgba(0,212,255,0.18);
+  --text:#c8dff0;
+  --text-dim:#5a7a99;
+}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.025) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0}
+.app{position:relative;z-index:1}
+
+/* HEADER */
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:rgba(4,8,16,0.97);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+.header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0.4}
+.logo-row{display:flex;align-items:center;gap:14px}
+.logo-ring{width:40px;height:40px;border:2px solid var(--cyan);border-radius:50%;display:flex;align-items:center;justify-content:center;animation:spin 10s linear infinite;box-shadow:0 0 14px rgba(0,212,255,0.25)}
+.logo-ring::before{content:'A';font-family:'Orbitron',sans-serif;font-size:16px;font-weight:900;color:var(--cyan);animation:spin 10s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.logo-text h1{font-family:'Orbitron',sans-serif;font-size:1.4rem;font-weight:900;letter-spacing:6px;color:var(--cyan);text-shadow:0 0 18px rgba(0,212,255,0.45)}
+.logo-text p{font-family:'Share Tech Mono',monospace;font-size:0.65rem;letter-spacing:3px;color:var(--text-dim);margin-top:2px}
+.hdr-center{text-align:center}
+.hdr-time{font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:700;color:var(--cyan);display:block;letter-spacing:3px}
+.hdr-date{font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:3px;color:var(--text-dim)}
+.hdr-badges{display:flex;gap:10px;align-items:center}
+.badge{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:0.68rem;letter-spacing:2px}
+.badge-green{background:var(--green-dim);border:1px solid rgba(0,255,136,0.3);color:var(--green)}
+.badge-red{background:var(--red-dim);border:1px solid rgba(255,59,59,0.35);color:var(--red)}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-green{background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 1.5s ease-in-out infinite}
+.dot-red{background:var(--red);box-shadow:0 0 6px var(--red);animation:blink 1s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.35}}
+
+/* CAMERA BLOCK */
+.cam-block{width:100%;background:var(--bg2);border-bottom:1px solid var(--border)}
+.cam-topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.4)}
+.cam-id{font-family:'Orbitron',sans-serif;font-size:0.65rem;letter-spacing:4px;color:var(--cyan)}
+.cam-topright{display:flex;align-items:center;gap:24px}
+.cam-meta{display:flex;gap:14px}
+.cam-meta span{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);letter-spacing:1px}
+.rec-pill{display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--red);letter-spacing:2px}
+.rec-dot{width:8px;height:8px;border-radius:50%;background:var(--red);animation:blink 1s ease-in-out infinite}
+
+/* THE FEED — wide cinematic */
+.cam-feed{position:relative;width:100%;padding-bottom:44%;background:#000;overflow:hidden}
+.cam-feed img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cam-feed-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#0a1830 0%,#000 100%);gap:16px}
+.cam-feed-placeholder .ico{font-family:'Orbitron',sans-serif;font-size:3rem;color:rgba(0,212,255,0.15);letter-spacing:4px}
+.cam-feed-placeholder p{font-family:'Share Tech Mono',monospace;font-size:0.75rem;color:var(--text-dim);letter-spacing:3px}
+.scanlines{position:absolute;inset:0;pointer-events:none;z-index:3;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px)}
+.sweep{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.5),transparent);animation:sweepDown 5s ease-in-out infinite;z-index:5;pointer-events:none}
+@keyframes sweepDown{0%{top:0;opacity:0}5%{opacity:1}95%{opacity:0.4}100%{top:100%;opacity:0}}
+.hud-c{position:absolute;width:32px;height:32px;border-color:var(--cyan);border-style:solid;opacity:0.6;z-index:6;pointer-events:none}
+.hud-c.tl{top:14px;left:14px;border-width:2px 0 0 2px}
+.hud-c.tr{top:14px;right:14px;border-width:2px 2px 0 0}
+.hud-c.bl{bottom:14px;left:14px;border-width:0 0 2px 2px}
+.hud-c.br{bottom:14px;right:14px;border-width:0 2px 2px 0}
+.det-box{position:absolute;border:1.5px solid var(--amber);border-radius:2px;z-index:7;pointer-events:none;transition:top 0.2s ease}
+.det-lbl{position:absolute;top:-22px;left:0;font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--amber);background:rgba(0,0,0,0.75);padding:2px 7px;letter-spacing:1px;white-space:nowrap}
+.hud-strip{position:absolute;bottom:0;left:0;right:0;z-index:8;pointer-events:none;display:flex;justify-content:space-between;align-items:flex-end;padding:14px 22px;background:linear-gradient(transparent,rgba(0,0,0,0.65))}
+.hud-left,.hud-right{font-family:'Share Tech Mono',monospace;font-size:0.65rem;letter-spacing:1px;line-height:1.9}
+.hud-left{color:var(--cyan)}
+.hud-right{color:var(--amber);text-align:right}
+
+/* Confidence row */
+.conf-row{display:flex;align-items:center;gap:14px;padding:9px 24px;background:rgba(0,0,0,0.35);border-top:1px solid var(--border)}
+.conf-lbl{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);letter-spacing:2px;white-space:nowrap}
+.conf-track{flex:1;height:3px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden}
+.conf-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--cyan));border-radius:2px;transition:width 0.6s ease}
+.conf-num{font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--green);min-width:36px;text-align:right}
+
+/* Cam footer */
+.cam-footer{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;border-top:1px solid var(--border);background:rgba(0,0,0,0.5)}
+.cam-btns{display:flex;gap:8px}
+.cbtn{padding:7px 18px;border:1px solid var(--border);border-radius:3px;background:rgba(0,212,255,0.04);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:0.65rem;letter-spacing:2px;cursor:pointer;transition:all 0.2s}
+.cbtn:hover{background:var(--cyan-dim);border-color:var(--cyan)}
+.cbtn.active{background:rgba(255,59,59,0.12);border-color:var(--red);color:var(--red)}
+.cam-readouts{display:flex;gap:24px}
+.cread{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);letter-spacing:1px}
+.cread span{color:var(--cyan)}
+
+/* PANELS */
+.panels-section{padding:22px 24px;background:var(--bg)}
+
+/* Tab nav */
+.tab-nav{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:22px;overflow-x:auto}
+.tab-nav::-webkit-scrollbar{display:none}
+.tab-btn{padding:11px 28px;border:1px solid transparent;border-bottom:none;border-radius:4px 4px 0 0;font-family:'Orbitron',sans-serif;font-size:0.6rem;font-weight:700;letter-spacing:3px;color:var(--text-dim);background:transparent;cursor:pointer;transition:all 0.2s;white-space:nowrap;position:relative;bottom:-1px}
+.tab-btn:hover{color:var(--cyan)}
+.tab-btn.active{border-color:var(--border);border-bottom-color:var(--bg);background:var(--bg);color:var(--cyan)}
+.tab-btn.active::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--cyan);border-radius:4px 4px 0 0}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* Status tab */
+.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px}
+.status-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:16px 20px}
+.sc-label{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px}
+.sc-val{font-family:'Orbitron',sans-serif;font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.sc-val.cyan{color:var(--cyan)}.sc-val.green{color:var(--green)}.sc-val.amber{color:var(--amber)}.sc-val.red{color:var(--red)}
+.status-rows{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:18px}
+.srow{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.srow:last-child{border-bottom:none}
+.srow-lbl{font-size:0.9rem;color:var(--text-dim)}
+.srow-val{font-family:'Share Tech Mono',monospace;font-size:0.78rem;display:flex;align-items:center;gap:8px}
+.threat-wrap{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:18px 20px}
+.threat-title{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);letter-spacing:2px;margin-bottom:12px}
+.threat-track{height:8px;background:rgba(255,255,255,0.07);border-radius:4px;overflow:hidden;margin-bottom:6px}
+.threat-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green) 0%,var(--amber) 60%,var(--red) 100%);width:18%;transition:width 1s ease}
+.threat-ticks{display:flex;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--text-dim)}
+
+/* Performance tab */
+.perf-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.perf-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:22px;text-align:center;position:relative;overflow:hidden}
+.perf-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.perf-card.c1::before{background:var(--green)}.perf-card.c2::before{background:var(--cyan)}.perf-card.c3::before{background:var(--amber)}.perf-card.c4::before{background:var(--red)}
+.perf-val{font-family:'Orbitron',sans-serif;font-size:2.2rem;font-weight:700;display:block;margin-bottom:6px}
+.perf-val.green{color:var(--green)}.perf-val.cyan{color:var(--cyan)}.perf-val.amber{color:var(--amber)}.perf-val.red{color:var(--red)}
+.perf-lbl{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);letter-spacing:2px}
+.mini-bars{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.mbar-item{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:14px 16px}
+.mbar-head{display:flex;justify-content:space-between;margin-bottom:8px}
+.mbar-name{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);letter-spacing:1px}
+.mbar-num{font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--cyan)}
+.mbar-track{height:4px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden}
+.mbar-fill{height:100%;border-radius:2px;transition:width 0.5s}
+.mbar-fill.cyan{background:var(--cyan)}.mbar-fill.green{background:var(--green)}.mbar-fill.amber{background:var(--amber)}
+
+/* Actions tab */
+.actions-layout{display:grid;grid-template-columns:300px 1fr;gap:18px}
+.action-col{display:flex;flex-direction:column;gap:12px}
+.abtn{padding:16px 24px;border-radius:4px;border:1px solid;font-family:'Orbitron',sans-serif;font-size:0.65rem;font-weight:700;letter-spacing:3px;cursor:pointer;transition:all 0.25s;display:flex;align-items:center;justify-content:center;gap:12px}
+.abtn-sos{background:var(--red-dim);border-color:rgba(255,59,59,0.4);color:var(--red)}
+.abtn-sos:hover{background:rgba(255,59,59,0.2);box-shadow:0 0 24px rgba(255,59,59,0.2)}
+.abtn-alert{background:var(--amber-dim);border-color:rgba(255,184,0,0.35);color:var(--amber)}
+.abtn-alert:hover{background:rgba(255,184,0,0.18);box-shadow:0 0 24px rgba(255,184,0,0.15)}
+.abtn-sec{background:rgba(0,212,255,0.05);border-color:var(--border);color:var(--cyan)}
+.abtn-sec:hover{background:var(--cyan-dim);border-color:var(--cyan)}
+#alert-box{display:none;padding:12px 16px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:0.75rem;letter-spacing:1px;animation:slideIn 0.3s ease}
+#alert-box.danger{background:var(--red-dim);border:1px solid rgba(255,59,59,0.4);color:var(--red)}
+#alert-box.success{background:var(--green-dim);border:1px solid rgba(0,255,136,0.3);color:var(--green)}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.log-wrap{background:rgba(0,10,20,0.95);border:1px solid var(--border);border-radius:4px;overflow:hidden;flex:1}
+.log-head-row{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border)}
+.log-title-sm{font-family:'Orbitron',sans-serif;font-size:0.6rem;letter-spacing:3px;color:var(--cyan)}
+.log-body{padding:12px 14px;font-family:'Share Tech Mono',monospace;font-size:0.68rem;max-height:240px;overflow-y:auto;line-height:1.85;color:var(--text-dim)}
+.log-body::-webkit-scrollbar{width:3px}
+.log-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.ll.ok{color:var(--green)}.ll.err{color:var(--red)}.ll.warn{color:var(--amber)}.ll.info{color:var(--cyan)}
+
+/* Config tab */
+.config-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.cfg-section{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:22px}
+.cfg-title{font-family:'Orbitron',sans-serif;font-size:0.6rem;letter-spacing:3px;color:var(--cyan);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.cfg-row{margin-bottom:14px}
+.cfg-lbl{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);letter-spacing:2px;display:block;margin-bottom:6px}
+.cfg-input{width:100%;padding:9px 14px;background:rgba(0,20,40,0.8);border:1px solid var(--border);border-radius:3px;color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:0.75rem;letter-spacing:1px;outline:none;transition:border-color 0.2s}
+.cfg-input:focus{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,212,255,0.08)}
+.toggle-row2{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.toggle-row2:last-of-type{border-bottom:none}
+.tgl-lbl{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text-dim);letter-spacing:1px}
+.tgl{width:38px;height:20px;border-radius:10px;background:rgba(0,212,255,0.1);border:1px solid var(--border);position:relative;cursor:pointer;transition:background 0.3s}
+.tgl.on{background:rgba(0,255,136,0.15);border-color:rgba(0,255,136,0.4)}
+.tgl-k{position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:var(--text-dim);transition:all 0.3s}
+.tgl.on .tgl-k{left:21px;background:var(--green)}
+.cfg-save{width:100%;margin-top:18px;padding:13px;border-radius:3px;border:1px solid rgba(0,212,255,0.3);background:rgba(0,212,255,0.07);color:var(--cyan);font-family:'Orbitron',sans-serif;font-size:0.62rem;letter-spacing:3px;font-weight:700;cursor:pointer;transition:all 0.25s}
+.cfg-save:hover{background:var(--cyan-dim);border-color:var(--cyan)}
+
+.dev-bar{text-align:center;padding:14px;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);letter-spacing:2px;border-top:1px solid var(--border);background:rgba(0,0,0,0.3)}
+.dev-bar span{color:var(--cyan)}
+
+@media(max-width:960px){
+  .perf-grid{grid-template-columns:repeat(2,1fr)}
+  .mini-bars{grid-template-columns:1fr 1fr}
+  .actions-layout,.config-grid{grid-template-columns:1fr}
+  .status-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:560px){.cam-readouts{display:none}.tab-btn{padding:10px 16px;font-size:0.5rem}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-row">
+    <div class="logo-ring"></div>
+    <div class="logo-text">
+      <h1>ALICE</h1>
+      <p>YOLO-BASED THREAT DETECTION · v8.0</p>
+    </div>
+  </div>
+  <div class="hdr-center">
+    <span class="hdr-time" id="clock">--:--:--</span>
+    <span class="hdr-date" id="dateStr">LOADING</span>
+  </div>
+  <div class="hdr-badges">
+    <div class="badge badge-green"><span class="dot dot-green"></span>SYS ACTIVE</div>
+    <div class="badge badge-red">TL: LOW</div>
+  </div>
+</div>
+
+<!-- FULL WIDTH CAMERA -->
+<div class="cam-block">
+  <div class="cam-topbar">
+    <div class="cam-id">◈ LIVE FEED — <span id="camId">CAM 01 / SECTOR A-7</span></div>
+    <div class="cam-topright">
+      <div class="cam-meta">
+        <span>RES 1920×1080</span><span>·</span>
+        <span>H.264</span><span>·</span>
+        <span>YOLOv8</span><span>·</span>
+        <span id="fpsTop">15 FPS</span>
+      </div>
+      <div class="rec-pill"><span class="rec-dot"></span>REC</div>
+    </div>
+  </div>
+
+  <div class="cam-feed" id="camFeed">
+    <img id="feedImg" alt="CCTV Live Feed" style="width: 100%; height: 100%; object-fit: cover;" />
+    <div class="cam-feed-placeholder" id="placeholder" style="display:flex">
+      <div class="ico">ALICE</div>
+      <p>AWAITING STREAM — /VIDEO ENDPOINT</p>
+    </div>
+    <div class="scanlines"></div>
+    <div class="sweep"></div>
+    <div class="hud-c tl"></div><div class="hud-c tr"></div>
+    <div class="hud-c bl"></div><div class="hud-c br"></div>
+    <div class="det-box" id="detBox" style="top:28%;left:22%;width:90px;height:130px">
+      <span class="det-lbl">PERSON 94.2%</span>
+    </div>
+    <div class="hud-strip">
+      <div class="hud-left">
+        <span>LAT: 24.8607° N</span><br>
+        <span>LON: 67.0011° E</span><br>
+        <span>ALT: 14.3 m</span>
+      </div>
+      <div class="hud-right">
+        <span>CONF: <span id="confHud">94%</span></span><br>
+        <span>OBJ DETECTED: 1</span><br>
+        <span id="fpsHud">FPS: 15</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="conf-row">
+    <span class="conf-lbl">DETECTION CONFIDENCE</span>
+    <div class="conf-track"><div class="conf-fill" id="confFill" style="width:94%"></div></div>
+    <span class="conf-num" id="confVal">94%</span>
+  </div>
+
+  <div class="cam-footer">
+    <div class="cam-btns">
+      <button class="cbtn" id="streamBtn" onclick="toggleStream(this)">▶ START</button>
+      <button class="cbtn" id="recBtn" onclick="toggleRec(this)">⏺ RECORD</button>
+      <button class="cbtn" onclick="snapShot()">⊡ SNAPSHOT</button>
+      <button class="cbtn" onclick="cycleCamera()">↺ NEXT CAM</button>
+      <button class="cbtn" onclick="window.location.href='/logs'" style="background:rgba(0,212,255,0.08);border-color:rgba(0,212,255,0.3);">📋 LOGS</button>
+    </div>
+    <div class="cam-readouts">
+      <span class="cread">FPS <span id="fpsVal">15</span></span>
+      <span class="cread">LATENCY <span>45ms</span></span>
+      <span class="cread">BUFFER <span>0.4s</span></span>
+      <span class="cread">STORAGE <span>2.3 GB</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- TABBED PANELS BELOW -->
+<div class="panels-section">
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('status',this)">SYSTEM STATUS</button>
+    <button class="tab-btn" onclick="switchTab('performance',this)">PERFORMANCE</button>
+    <button class="tab-btn" onclick="switchTab('actions',this)">QUICK ACTIONS</button>
+    <button class="tab-btn" onclick="switchTab('config',this)">CONFIGURATION</button>
+  </div>
+
+  <!-- STATUS -->
+  <div class="tab-panel active" id="tab-status">
+    <div class="status-grid">
+      <div class="status-card">
+        <div class="sc-label">DETECTION ENGINE</div>
+        <div class="sc-val green"><span class="dot dot-green"></span>ACTIVE</div>
+      </div>
+      <div class="status-card">
+        <div class="sc-label">SMTP ALERTS</div>
+        <div class="sc-val green"><span class="dot dot-green"></span>READY</div>
+      </div>
+      <div class="status-card">
+        <div class="sc-label">CAMERA STREAM</div>
+        <div class="sc-val cyan"><span class="dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></span>LIVE</div>
+      </div>
+      <div class="status-card">
+        <div class="sc-label">SYSTEM UPTIME</div>
+        <div class="sc-val amber">24H 12M</div>
+      </div>
+    </div>
+    <div class="status-rows">
+      <div class="srow"><span class="srow-lbl">Threats Detected</span><span class="srow-val" style="color:var(--amber)">0</span></div>
+      <div class="srow"><span class="srow-lbl">Alerts Sent</span><span class="srow-val" style="color:var(--text-dim)">0</span></div>
+      <div class="srow"><span class="srow-lbl">Model Version</span><span class="srow-val" style="color:var(--cyan)">YOLOv8 — v2.1.0</span></div>
+      <div class="srow"><span class="srow-lbl">Active Cameras</span><span class="srow-val" style="color:var(--green)">1 / 4</span></div>
+      <div class="srow"><span class="srow-lbl">Last Event</span><span class="srow-val" style="color:var(--text-dim)" id="lastEvt">NO EVENTS</span></div>
+    </div>
+    <div class="threat-wrap">
+      <div class="threat-title">THREAT LEVEL INDICATOR ─────────────────────</div>
+      <div class="threat-track"><div class="threat-fill"></div></div>
+      <div class="threat-ticks"><span>LOW</span><span>MODERATE</span><span>HIGH</span><span>CRITICAL</span></div>
+    </div>
+  </div>
+
+  <!-- PERFORMANCE -->
+  <div class="tab-panel" id="tab-performance">
+    <div class="perf-grid">
+      <div class="perf-card c1"><span class="perf-val green">94.2%</span><span class="perf-lbl">ACCURACY</span></div>
+      <div class="perf-card c2"><span class="perf-val cyan">45ms</span><span class="perf-lbl">LATENCY</span></div>
+      <div class="perf-card c3"><span class="perf-val amber" id="fpsPerfCard">15</span><span class="perf-lbl">FPS</span></div>
+      <div class="perf-card c4"><span class="perf-val red">2.3 GB</span><span class="perf-lbl">STORAGE USED</span></div>
+    </div>
+    <div class="mini-bars">
+      <div class="mbar-item"><div class="mbar-head"><span class="mbar-name">CPU USAGE</span><span class="mbar-num" id="cpuNum">62%</span></div><div class="mbar-track"><div class="mbar-fill cyan" id="cpuBar" style="width:62%"></div></div></div>
+      <div class="mbar-item"><div class="mbar-head"><span class="mbar-name">GPU USAGE</span><span class="mbar-num" id="gpuNum">78%</span></div><div class="mbar-track"><div class="mbar-fill green" id="gpuBar" style="width:78%"></div></div></div>
+      <div class="mbar-item"><div class="mbar-head"><span class="mbar-name">RAM USAGE</span><span class="mbar-num" id="ramNum">54%</span></div><div class="mbar-track"><div class="mbar-fill amber" id="ramBar" style="width:54%"></div></div></div>
+      <div class="mbar-item"><div class="mbar-head"><span class="mbar-name">NETWORK I/O</span><span class="mbar-num" id="netNum">38%</span></div><div class="mbar-track"><div class="mbar-fill cyan" id="netBar" style="width:38%"></div></div></div>
+    </div>
+  </div>
+
+  <!-- QUICK ACTIONS -->
+  <div class="tab-panel" id="tab-actions">
+    <div class="actions-layout">
+      <div class="action-col">
+        <button class="abtn abtn-sos" onclick="triggerSOS()">⚠ MANUAL SOS</button>
+        <button class="abtn abtn-alert" onclick="sendAlert()">▲ SEND ALERT</button>
+        <button class="abtn abtn-sec" href='/app/web/templates/logs.html'> VIEW LOGS</button>
+        <button class="abtn abtn-sec" onclick="downloadLogs()">⬇ EXPORT LOGS</button>
+        <div id="alert-box"></div>
+      </div>
+      <div class="log-wrap">
+        <div class="log-head-row">
+          <span class="log-title-sm">SYSTEM LOGS</span>
+          <button class="cbtn" onclick="downloadLogs()" style="padding:4px 12px">⬇ EXPORT</button>
+        </div>
+        <div class="log-body" id="logBody">
+          <div class="ll ok">[INIT] ── System initialized successfully</div>
+          <div class="ll info">[LOAD] ── Detection model v2.1.0 loaded</div>
+          <div class="ll ok">[SMTP] ── Mail server configured</div>
+          <div class="ll ok">[CAM] ── Video stream at 1080p/15fps</div>
+          <div class="ll info">[IDLE] ── Monitoring active...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIGURATION -->
+  <div class="tab-panel" id="tab-config">
+    <div class="config-grid">
+      <div class="cfg-section">
+        <div class="cfg-title">ALERT SETTINGS</div>
+        <div class="cfg-row"><label class="cfg-lbl">OPERATOR EMAIL</label><input type="email" class="cfg-input" placeholder="operator@domain.com" id="emailInput"></div>
+        <div class="cfg-row"><label class="cfg-lbl">ALERT THRESHOLD (%)</label><input type="number" class="cfg-input" value="75" id="threshInput"></div>
+        <div class="cfg-row"><label class="cfg-lbl">SMTP SERVER</label><input type="text" class="cfg-input" placeholder="smtp.gmail.com:587"></div>
+        <div class="toggle-row2"><span class="tgl-lbl">EMAIL NOTIFICATIONS</span><div class="tgl on" onclick="this.classList.toggle('on')"><div class="tgl-k" style="left:21px"></div></div></div>
+        <div class="toggle-row2"><span class="tgl-lbl">AUDIO ALERT</span><div class="tgl" onclick="this.classList.toggle('on')"><div class="tgl-k"></div></div></div>
+      </div>
+      <div class="cfg-section">
+        <div class="cfg-title">DETECTION SETTINGS</div>
+        <div class="cfg-row"><label class="cfg-lbl">CONFIDENCE MIN (%)</label><input type="number" class="cfg-input" value="60"></div>
+        <div class="cfg-row"><label class="cfg-lbl">DETECTION CLASSES</label><input type="text" class="cfg-input" value="person, weapon, vehicle"></div>
+        <div class="cfg-row"><label class="cfg-lbl">MAX OBJECTS / FRAME</label><input type="number" class="cfg-input" value="10"></div>
+        <div class="toggle-row2"><span class="tgl-lbl">AUTO RECORD ON DETECT</span><div class="tgl on" onclick="this.classList.toggle('on')"><div class="tgl-k" style="left:21px"></div></div></div>
+        <div class="toggle-row2"><span class="tgl-lbl">NIGHT MODE ENHANCE</span><div class="tgl" onclick="this.classList.toggle('on')"><div class="tgl-k"></div></div></div>
+      </div>
+    </div>
+    <button class="cfg-save" onclick="saveSettings()">💾 SAVE CONFIGURATION</button>
+  </div>
+</div>
+
+<div class="dev-bar">
+  ALICE v8 · Developed by <span>Akash Sagolshem</span>, <span>Amarjeet Kumar</span> &amp; <span>Ayush Chandravanshi</span> · YOLO-Based Threat Detection System
+</div>
+
+</div>
+<script>
+function updateClock(){
+  const n=new Date();
+  document.getElementById('clock').textContent=n.toLocaleTimeString('en-GB',{hour12:false});
+  document.getElementById('dateStr').textContent=n.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+}
+updateClock();setInterval(updateClock,1000);
+
+function switchTab(id,btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+let camIdx=1;
+function cycleCamera(){camIdx=camIdx>=4?1:camIdx+1;document.getElementById('camId').textContent='CAM 0'+camIdx+' / SECTOR A-'+(camIdx+6);addLog('Switched to CAM 0'+camIdx,'info')}
+let streaming=false,recording=false;
+function toggleStream(btn){streaming=!streaming;btn.textContent=streaming?'⏸ PAUSE':'▶ START';btn.classList.toggle('active',streaming);addLog(streaming?'Video stream started':'Video stream paused',streaming?'ok':'warn')}
+function toggleRec(btn){recording=!recording;btn.textContent=recording?'⏹ STOP':'⏺ RECORD';btn.classList.toggle('active',recording);addLog(recording?'Recording started':'Recording stopped',recording?'ok':'warn')}
+function snapShot(){addLog('Snapshot saved — frame_'+Date.now()+'.jpg','ok')}
+
+function triggerSOS(){showAlert('🚨 SOS TRIGGERED — Emergency dispatched.','danger');addLog('MANUAL SOS triggered','err');document.getElementById('lastEvt').textContent=ts()+' — SOS TRIGGERED'}
+function sendAlert(){showAlert('▲ Alert sent to registered email.','success');addLog('Manual alert sent via SMTP','ok');document.getElementById('lastEvt').textContent=ts()+' — ALERT SENT'}
+function showAlert(msg,type){const el=document.getElementById('alert-box');el.textContent=msg;el.className=type;el.style.display='block';setTimeout(()=>{el.style.display='none'},4000)}
+function saveSettings(){const e=document.getElementById('emailInput').value;if(!e){addLog('Error: email required','err');return}addLog('Config saved — '+e,'ok');showAlert('✓ Configuration saved','success')}
+function downloadLogs(){const txt=document.getElementById('logBody').innerText;const a=document.createElement('a');a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);a.download='alice-logs-'+Date.now()+'.txt';a.click();addLog('Logs exported','ok')}
+
+function ts(){return new Date().toLocaleTimeString('en-GB',{hour12:false})}
+function addLog(msg,type='info'){const lb=document.getElementById('logBody');const d=document.createElement('div');d.className='ll '+type;d.textContent='['+ts()+'] ── '+msg;lb.appendChild(d);lb.scrollTop=lb.scrollHeight}
+
+setInterval(()=>{
+  const f=13+Math.floor(Math.random()*4);
+  ['fpsVal','fpsPerfCard'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=f});
+  document.getElementById('fpsTop').textContent=f+' FPS';
+  document.getElementById('fpsHud').textContent='FPS: '+f;
+},2000);
+
+setInterval(()=>{
+  const v=90+Math.floor(Math.random()*8);
+  document.getElementById('confFill').style.width=v+'%';
+  document.getElementById('confVal').textContent=v+'%';
+  document.getElementById('confHud').textContent=v+'%';
+},3000);
+
+function rnd(base,range){return Math.min(99,Math.max(10,base+Math.floor((Math.random()-0.5)*range)))}
+setInterval(()=>{
+  [['cpu',62,14,'cyan'],['gpu',78,10,'green'],['ram',54,8,'amber'],['net',38,18,'cyan']].forEach(([k,b,r])=>{
+    const v=rnd(b,r);
+    document.getElementById(k+'Num').textContent=v+'%';
+    document.getElementById(k+'Bar').style.width=v+'%';
+  });
+},3500);
+
+let dy=28,dd=1;
+setInterval(()=>{dy+=dd*0.25;if(dy>31||dy<25)dd*=-1;const b=document.getElementById('detBox');if(b)b.style.top=dy+'%';},120);
+
+/* MJPEG Stream Handler */
+function startMJPEGStream() {
+  const img = document.getElementById('feedImg');
+  const placeholder = document.getElementById('placeholder');
+  
+  fetch('/video')
+    .then(response => {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      
+      function readChunk() {
+        reader.read().then(({done, value}) => {
+          if (done) {
+            console.log('Stream ended');
+            placeholder.style.display = 'flex';
+            return;
+          }
+          
+          buffer += decoder.decode(value, {stream: true});
+          
+          // Look for JPEG frames between boundaries
+          const parts = buffer.split('--frame');
+          
+          if (parts.length > 1) {
+            // Process all complete frames
+            for (let i = 1; i < parts.length - 1; i++) {
+              const frame = parts[i];
+              
+              // Extract JPEG data
+              const jpegMatch = frame.match(/\xff\xd8[\s\S]*?\xff\xd9/);
+              if (jpegMatch) {
+                try {
+                  const blob = new Blob([jpegMatch[0]], {type: 'image/jpeg'});
+                  const url = URL.createObjectURL(blob);
+                  
+                  // Update image and hide placeholder
+                  img.onload = function() {
+                    placeholder.style.display = 'none';
+                    URL.revokeObjectURL(url);
+                  };
+                  img.src = url;
+                } catch(e) {
+                  console.error('Error processing frame:', e);
+                }
+              }
+            }
+            
+            // Keep unprocessed data in buffer
+            buffer = parts[parts.length - 1];
+          }
+          
+          readChunk();
+        });
+      }
+      
+      readChunk();
+    })
+    .catch(error => {
+      console.error('Stream error:', error);
+      placeholder.style.display = 'flex';
+    });
+}
+
+// Start stream when page loads
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startMJPEGStream);
+} else {
+  startMJPEGStream();
+}
+</script>
+</body>
+</html>
